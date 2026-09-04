@@ -18,7 +18,13 @@ HF_BASE_URL = f"https://huggingface.co/datasets/{HF_REPO_ID}/resolve/main"
 
 @app.on_event("startup")
 async def startup():
-    app.state.pool = await asyncpg.create_pool(os.environ["DATABASE_URL"])
+    db_url = os.environ["DATABASE_URL"].strip().strip('"').strip("'")
+    if not db_url.startswith(("postgres://", "postgresql://")):
+        raise RuntimeError(
+            f"DATABASE_URL doesn't look like a Postgres connection string "
+            f"(starts with {db_url[:15]!r}) - check for a stray character in the Render env var"
+        )
+    app.state.pool = await asyncpg.create_pool(db_url)
 
 
 @app.on_event("shutdown")
