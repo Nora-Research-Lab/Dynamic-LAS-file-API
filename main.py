@@ -3,8 +3,8 @@ import traceback
 from typing import Optional
 
 import asyncpg
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse, RedirectResponse
 
 app = FastAPI(title="Kansas Well Index API")
 
@@ -57,6 +57,15 @@ async def search_wells(
     async with app.state.pool.acquire() as conn:
         rows = await conn.fetch(query, *params)
     return [dict(r) for r in rows]
+
+
+@app.get("/wells/{kgs_id}/download")
+async def download_well(kgs_id: str):
+    async with app.state.pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT url FROM wells WHERE kgs_id = $1", kgs_id)
+    if not row or not row["url"]:
+        raise HTTPException(status_code=404, detail="no download URL available for this well")
+    return RedirectResponse(row["url"])
 
 
 @app.get("/health")
